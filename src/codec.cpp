@@ -3,24 +3,29 @@
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <stream/serializer.hpp>
+#include <stream/codec.hpp>
 #include <algorithm>
 
 namespace stream
 {
 
-bool serializer::done()  const
+bool codec::done()  const
 {
   return (!impl_ || impl_.done()) && remaining_.empty();
 }
 
-std::string_view serializer::read_some(std::span<char> buffer)
+auto codec::encode_some(
+    std::string_view input,
+    std::span<char> buffer) -> result
 {
   auto n = (std::min)(remaining_.size(), buffer.size());
   std::copy_n(remaining_.begin(), n, buffer.begin());
   written_ = n;
   remaining_.remove_prefix(n);
   buffer_ = buffer;
+  read_ = 0u;
+  input_ = input;
+
   if (!done() && (buffer_.size() != written_)) // space remaining
   {
     impl_.promise().ser = this;
@@ -28,34 +33,34 @@ std::string_view serializer::read_some(std::span<char> buffer)
     impl_.promise().ser = nullptr;
 
   }
-  return {buffer.data(), written_};
+  return {read_, {buffer.data(), written_}};
 }
 
 namespace detail
 {
 
-serializer serializer_promise::get_return_object()
+codec codec_promise::get_return_object()
 {
-  serializer s;
-  s.impl_ = detail::unique_handle<serializer_promise>::from_promise(*this);
+  codec s;
+  s.impl_ = detail::unique_handle<codec_promise>::from_promise(*this);
   return s;
 }
 
-auto serializer_promise::yield_value(const char & c) -> conditional_suspend
+auto codec_promise::yield_value(const char & c) -> conditional_suspend
 {
   if (ser->written_ < ser->buffer_.size())
   {
     ser->buffer_[ser->written_] = c;
     ser->written_++;
-    return conditional_suspend{true};
+    return conditional_suspend{true, codec::buffer{ser}};
   }
   else
     ser->remaining_ = {&c, 1u};
 
-  return conditional_suspend{false};
+  return conditional_suspend{false, codec::buffer{ser}};
 }
 
-auto serializer_promise::yield_value(std::string_view c) -> conditional_suspend
+auto codec_promise::yield_value(std::string_view c) -> conditional_suspend
 {
   if (ser->written_ < ser->buffer_.size())
   {
@@ -68,15 +73,20 @@ auto serializer_promise::yield_value(std::string_view c) -> conditional_suspend
     if (!c.empty())
       ser->remaining_ = c;
 
-    return conditional_suspend{c.empty()};
+    return conditional_suspend{c.empty(), codec::buffer{ser}};
   }
   else
     ser->remaining_ = c;
 
-  return conditional_suspend{false};
+  return conditional_suspend{false, codec::buffer{ser}};
 }
 
-auto serializer_promise::await_transform(serializer && inner) -> inner_awaitable
+auto codec_promise::await_transform(const codec::input_t &) -> conditional_suspend
+{
+  return conditional_suspend{!ser->input_.empty(), codec::buffer{ser}};
+}
+
+auto codec_promise::await_transform(codec && inner) -> inner_awaitable
 {
   return inner_awaitable{std::move(inner.impl_)};
 }

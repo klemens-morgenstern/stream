@@ -3,7 +3,7 @@ project(stream)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_library(stream STATIC src/serializer.cpp)
+add_library(stream STATIC src/serializer.cpp src/codec.cpp)
 
 include_directories(include)
 
