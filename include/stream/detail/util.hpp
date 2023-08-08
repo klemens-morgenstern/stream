@@ -25,7 +25,6 @@ struct unique_handle
   void* address() const noexcept { return get_handle_().address(); }
   static unique_handle from_address(void* a) noexcept
   {
-
     unique_handle res;
     res.handle_.reset(&std::coroutine_handle<T>::from_address(a).promise());
     return res;

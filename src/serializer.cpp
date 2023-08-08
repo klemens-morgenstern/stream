@@ -78,6 +78,12 @@ auto serializer_promise::yield_value(std::string_view c) -> conditional_suspend
   return conditional_suspend{false};
 }
 
+auto serializer_promise::yield_value(serializer && inner) -> yield_value_awaitable
+{
+  return yield_value_awaitable{std::move(inner.impl_)};
+}
+
+
 }
 
 }

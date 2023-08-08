@@ -31,3 +31,27 @@ TEST_CASE("simple")
   CHECK(s.read_some(buffer) == ", 5, 6, 7,"sv);
   CHECK(s.read_some(buffer) == " 8, 9, 10"sv);
 }
+
+
+stream::serializer serialize_nested(std::vector<std::vector<int>> data)
+{
+  for (auto idx = 0u; idx < data.size(); idx++)
+  {
+    if (idx != 0)
+      co_yield ", ";
+    co_yield serialize_ints(std::move(data[idx]));
+  }
+}
+
+TEST_CASE("recursive")
+{
+  auto s = serialize_ints({1,2,3,4,5,6,7,8,9,10});
+  std::string buffer;
+  buffer.resize(10);
+
+  using std::operator""sv;
+
+  CHECK(s.read_some(buffer) == "1, 2, 3, 4"sv);
+  CHECK(s.read_some(buffer) == ", 5, 6, 7,"sv);
+  CHECK(s.read_some(buffer) == " 8, 9, 10"sv);
+}

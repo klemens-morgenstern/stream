@@ -17,7 +17,29 @@ namespace stream::detail
 struct serializer_promise
 {
   constexpr static std::suspend_always initial_suspend() noexcept {return {};}
-  constexpr static std::suspend_always final_suspend  () noexcept {return {};}
+
+  struct final_suspend_awaitable
+  {
+    detail::unique_handle<serializer_promise> awaited_from;
+    bool await_ready() const noexcept {return false;}
+    std::coroutine_handle<void> await_suspend(std::coroutine_handle<serializer_promise> h) noexcept
+    {
+      if (!awaited_from)
+        return std::noop_coroutine();
+#if _MSC_VER
+      awaited_from.promise().awaited_from = detail::unique_handle<serializer_promise>::from_promise(h.promise());
+#else
+      h.destroy();
+#endif
+      return std::move(awaited_from).release();
+    }
+    void await_resume() const noexcept {}
+  };
+
+  final_suspend_awaitable final_suspend  () noexcept
+  {
+    return {std::move(awaited_from)};
+  }
 
   serializer get_return_object();
 
@@ -43,7 +65,24 @@ struct serializer_promise
   conditional_suspend yield_value(const char & c);
   conditional_suspend yield_value(std::string_view c);
 
+  struct yield_value_awaitable
+  {
+    detail::unique_handle<serializer_promise> awaited_from;
+
+    constexpr bool await_ready() const noexcept {return false;}
+    std::coroutine_handle<serializer_promise>
+        await_suspend(std::coroutine_handle<serializer_promise> h)
+    {
+      return std::move(awaited_from).release();
+    }
+    constexpr void await_resume() const noexcept {}
+  };
+
+  yield_value_awaitable yield_value(serializer && inner);
+
   serializer * ser;
+  detail::unique_handle<serializer_promise> awaited_from;
+
 };
 
 }
