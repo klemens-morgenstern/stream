@@ -79,7 +79,7 @@ struct serializer_promise : detail::memory_resource_base
     constexpr void await_resume() const noexcept {}
   };
 
-  yield_value_awaitable yield_value(serializer && inner);
+  yield_value_awaitable await_transform(serializer && inner);
 
   serializer * ser;
   detail::unique_handle<serializer_promise> awaited_from;

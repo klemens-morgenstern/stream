@@ -39,7 +39,7 @@ stream::serializer serialize_nested(std::vector<std::vector<int>> data)
   {
     if (idx != 0)
       co_yield ", ";
-    co_yield serialize_ints(std::move(data[idx]));
+    co_await serialize_ints(std::move(data[idx]));
   }
 }
 
