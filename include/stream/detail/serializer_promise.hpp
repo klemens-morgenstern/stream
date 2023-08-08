@@ -5,8 +5,9 @@
 #ifndef STREAM_DETAIL_SERIALIZER_PROMISE_HPP
 #define STREAM_DETAIL_SERIALIZER_PROMISE_HPP
 
-#include <coroutine>
+#include <stream/detail/memory_resource_base.hpp>
 
+#include <coroutine>
 #include <string_view>
 
 namespace stream { struct serializer; }
@@ -14,7 +15,7 @@ namespace stream { struct serializer; }
 namespace stream::detail
 {
 
-struct serializer_promise
+struct serializer_promise : detail::memory_resource_base
 {
   constexpr static std::suspend_always initial_suspend() noexcept {return {};}
 
